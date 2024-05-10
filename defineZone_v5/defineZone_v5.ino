@@ -256,6 +256,7 @@ void loop()
       setMaxValues(PRESET_PITCH_MAX, PRESET_ROLL_MAX,PRESET_YAW_MAX,PRESET_COMBINED_MAX);
       setMinValues(PRESET_PITCH_MIN, PRESET_ROLL_MIN,PRESET_YAW_MIN);
       updateState(NORMAL);
+      stopVibration();
       break;
 
     case SET: //Set-Button - defining ZONE
@@ -264,12 +265,12 @@ void loop()
       digitalWrite(BRAKE_LED, LOW);
       digitalWrite(SETTING_LED, HIGH);
 
-      if(Pitch_Max==PRESET_PITCH_MAX && Roll_Max==PRESET_ROLL_MAX && Yaw_Max==PRESET_YAW_MAX && Pitch_Min==PRESET_PITCH_MIN && Roll_Min==PRESET_ROLL_MIN && Yaw_Min==PRESET_YAW_MIN)
+     /* if(Pitch_Max==PRESET_PITCH_MAX && Roll_Max==PRESET_ROLL_MAX && Yaw_Max==PRESET_YAW_MAX && Pitch_Min==PRESET_PITCH_MIN && Roll_Min==PRESET_ROLL_MIN && Yaw_Min==PRESET_YAW_MIN)
       {
         setMaxValues(5, 5,5, 10);
         setMinValues(-5, -5, -5);
-      }
-
+      }*/
+startVibration();
       setAngles();
       checkValues();
       printAngles();
@@ -278,6 +279,7 @@ void loop()
 
     case EMERGENCY: //Emergency-STOP
       chainsawRunning=false;
+      stopVibration();
       digitalWrite(WORK_LED, LOW);
       digitalWrite(BRAKE_LED, HIGH);
       digitalWrite(SETTING_LED, LOW);
@@ -402,4 +404,15 @@ void resetAllValues()
     }
 
     blink();
+}
+
+void startVibration()
+{
+  digitalWrite(MOT_CLOCK,HIGH);
+}
+
+void stopVibration()
+{
+  digitalWrite(MOT_CLOCK,LOW);
+  digitalWrite(MOT_ACLOCK,LOW);
 }
