@@ -47,6 +47,12 @@ const int RESET_BUTTON = 5;
 // Button pin for setting the system
 const int SET_BUTTON = 6; 
 
+// Motor pin for clockwise rotation
+const int MOT_CLOCK = 7; 
+
+// Motor pin for antilockwise rotation
+const int MOT_ACLOCK = 8; 
+
 // Alpha value for complementary filter
 double ALPHA = 0.75; 
 
@@ -84,16 +90,17 @@ const double PRESET_COMBINED_MAX=85;
 double pitch_final, roll_final, yaw_final;
 
 // Maximum and minimum values for pitch, roll, and yaw after adjustments
-double PITCH_MAX, ROLL_MAX, YAW_MAX;
-double PITCH_MIN, ROLL_MIN, YAW_MIN;
+ double Pitch_Max, Roll_Max, Yaw_Max;
+ double Pitch_Min, Roll_Min, Yaw_Min;
 
 // Maximum combined value after adjustments
-double COMBINED_MAX;
+double Combined_Max;
 
 // Variables to hold time values for calculations
 double previousTime;
 double currentTime; 
 double elapsedTime;
+
 
 // Boolean variable to check if the chainsaw should be running
 bool chainsawRunning;
@@ -106,7 +113,10 @@ enum State {
   STOP
 };
 
-void updateState(State newState) {
+State currentState=NORMAL;
+
+void updateState(State newState) 
+{
   currentState = newState;
 }
 
@@ -147,34 +157,42 @@ void setup()
         packetSize = mpu.dmpGetFIFOPacketSize();
 
     }
-  // Setze die Pins für die LEDs als Ausgänge
+  // Set Pins for LED as Outputs
   pinMode(WORK_LED, OUTPUT);
   pinMode(BRAKE_LED, OUTPUT);
   pinMode(SETTING_LED, OUTPUT);
 
-  // Setze die Pins für die Taster als Eingänge
+  // Set Pins for Button as Inputs
   pinMode(RESET_BUTTON, INPUT_PULLUP);
   pinMode(SET_BUTTON, INPUT_PULLUP);
+
+  // Set Pins for Motor as Outputs
+  pinMode(MOT_CLOCK, OUTPUT);
+  pinMode(MOT_ACLOCK, OUTPUT);  
+
+  //Set the Max & Min Values as Presets
+      setMaxValues(PRESET_PITCH_MAX, PRESET_ROLL_MAX,PRESET_YAW_MAX,PRESET_COMBINED_MAX);
+      setMinValues(PRESET_PITCH_MIN, PRESET_ROLL_MIN,PRESET_YAW_MIN);
 
   updateState(NORMAL);
   blink();
   chainsawRunning=false;
 }
 
-void checkAndUpdate(float &currentMax, float &currentMin, float finalValue) {
+void checkAndUpdate(float currentMax, float currentMin, float finalValue) {
   if(finalValue > currentMax) {
     currentMax = finalValue;
   }
   if(finalValue < currentMin) {
     currentMin = finalValue;
   }
-  COMBINED_MAX = abs(pitch_final) + abs(yaw_final) + 1.5 * abs(roll_final);
+  Combined_Max = abs(pitch_final) + abs(yaw_final) + 1.5 * abs(roll_final);
 }
 
 void checkValues() {
-  checkAndUpdate(PITCH_MAX, PITCH_MIN, pitch_final);
-  checkAndUpdate(ROLL_MAX, ROLL_MIN, roll_final);
-  checkAndUpdate(YAW_MAX, YAW_MIN, yaw_final);
+  checkAndUpdate(Pitch_Max, Pitch_Min, pitch_final);
+  checkAndUpdate(Roll_Max, Roll_Min, roll_final);
+  checkAndUpdate(Yaw_Max, Yaw_Min, yaw_final);
 }
 
 void checkButtonAndSetState(int button, int state) {
@@ -186,6 +204,13 @@ void checkButtonAndSetState(int button, int state) {
 void checkValueAndSetEmergency(float value, float min, float max, const char* message) {
   if(chainsawRunning && (value < min || value > max)) {
     Serial.println(message);
+    Serial.print("Value:");
+        Serial.println(value);
+        Serial.print("MIN:");
+        Serial.println(min);
+        Serial.print("MAX:");
+        Serial.println(max);
+        Serial.println();
     updateState(EMERGENCY);
   }
 }
@@ -196,12 +221,13 @@ void loop()
   checkButtonAndSetState(RESET_BUTTON, RESET);
   checkButtonAndSetState(SET_BUTTON, SET);
 
-  checkValueAndSetEmergency(pitch_final, PITCH_MIN, PITCH_MAX, "PITCH_OUT_OF_RANGE");
-  checkValueAndSetEmergency(roll_final, ROLL_MIN, ROLL_MAX, "ROLL_OUT_OF_RANGE");
-  checkValueAndSetEmergency(yaw_final, YAW_MIN, YAW_MAX, "YAW_OUT_OF_RANGE");
+  checkValueAndSetEmergency(pitch_final, Pitch_Min, Pitch_Max, "PITCH_OUT_OF_RANGE");
+  checkValueAndSetEmergency(roll_final, Roll_Min, Roll_Max, "ROLL_OUT_OF_RANGE");
+  checkValueAndSetEmergency(yaw_final, Yaw_Min, Yaw_Max, "YAW_OUT_OF_RANGE");
 
-  if(chainsawRunning && combined > COMBINED_MAX) {
-    Serial.println("COMBINED_MAX");
+  if(chainsawRunning && combined > Combined_Max) 
+  {
+    Serial.println("Combined_Max");
     updateState(EMERGENCY);
   }
 
@@ -227,9 +253,8 @@ void loop()
       setAngles();
       yawReset=yaw_final;
       setAngles();
-      setMaxValues(PRESET_PITCH_MAX, PRESET_ROLL_MAX,PRESET_YAW_MAX);
+      setMaxValues(PRESET_PITCH_MAX, PRESET_ROLL_MAX,PRESET_YAW_MAX,PRESET_COMBINED_MAX);
       setMinValues(PRESET_PITCH_MIN, PRESET_ROLL_MIN,PRESET_YAW_MIN);
-      COMBINED_MAX=PRESET_COMBINED_MAX;
       updateState(NORMAL);
       break;
 
@@ -239,18 +264,15 @@ void loop()
       digitalWrite(BRAKE_LED, LOW);
       digitalWrite(SETTING_LED, HIGH);
 
-      if(PITCH_MAX==PRESET_PITCH_MAX && ROLL_MAX==PRESET_ROLL_MAX && YAW_MAX==PRESET_YAW_MAX && PITCH_MIN==PRESET_PITCH_MIN && ROLL_MIN==PRESET_ROLL_MIN && YAW_MIN==PRESET_YAW_MIN)
+      if(Pitch_Max==PRESET_PITCH_MAX && Roll_Max==PRESET_ROLL_MAX && Yaw_Max==PRESET_YAW_MAX && Pitch_Min==PRESET_PITCH_MIN && Roll_Min==PRESET_ROLL_MIN && Yaw_Min==PRESET_YAW_MIN)
       {
-        setMaxValues(5, 5,5);
+        setMaxValues(5, 5,5, 10);
         setMinValues(-5, -5, -5);
       }
 
       setAngles();
-
       checkValues();
-
       printAngles();
-
       updateState(NORMAL);
       break;
 
@@ -308,13 +330,15 @@ if (mpu.dmpGetCurrentFIFOPacket(fifoBuffer)) // Get the Latest packet
 }
 }
 
-void printWithTab(const String& text, float value) {
+void printWithTab(const String& text, float value) 
+{
   Serial.print(text);
   Serial.print(value);
-  Serial.print("\t");
+  Serial.println();
 }
 
-void printAngles() {
+void printAngles() 
+{
   printWithTab("Pitch:", pitch_final);
   printWithTab("Roll:", roll_final);
   printWithTab("YAW:", yaw_final);
@@ -332,19 +356,20 @@ void printAngles() {
   */
 }
 
-void setMaxValues(double pitch_max, double roll_max, double yaw_max)
+void setMaxValues(double pitch_max, double roll_max, double yaw_max, double combined_max)
 {
-  PITCH_MAX=pitch_max;
-  ROLL_MAX=roll_max;
-  YAW_MAX=yaw_max;
+  Combined_Max=combined_max;
+  Pitch_Max=pitch_max;
+  Roll_Max=roll_max;
+  Yaw_Max=yaw_max;
 
 }
 
 void setMinValues(double pitch_min, double roll_min, double yaw_min)
 {
-  PITCH_MIN=pitch_min;
-  ROLL_MIN=roll_min;
-  YAW_MIN=yaw_min;
+  Pitch_Min=pitch_min;
+  Roll_Min=roll_min;
+  Yaw_Min=yaw_min;
 
 }
 
