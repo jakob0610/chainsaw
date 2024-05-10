@@ -66,7 +66,7 @@ double gyroAngleX, gyroAngleY, gyroAngleZ;
 double roll, pitch, rollZero, pitchZero, yaw, yawZero;
 
 // Combined value of roll, pitch and yaw
-double combined;
+double combined_final;
 
 // Reset value for yaw angle
 double yawReset=0;
@@ -84,7 +84,7 @@ const double PRESET_YAW_MAX=80;
 const double PRESET_YAW_MIN=-80;
 
 // Preset maximum combined value
-const double PRESET_COMBINED_MAX=85;
+const double PRESET_COMBINED_MAX=120;
 
 // Final values for pitch, roll, and yaw after calculations
 double pitch_final, roll_final, yaw_final;
@@ -186,7 +186,6 @@ void checkAndUpdate(float currentMax, float currentMin, float finalValue) {
   if(finalValue < currentMin) {
     currentMin = finalValue;
   }
-  Combined_Max = abs(pitch_final) + abs(yaw_final) + 1.5 * abs(roll_final);
 }
 
 void checkValues() {
@@ -201,7 +200,8 @@ void checkButtonAndSetState(int button, int state) {
   }
 }
 
-void checkValueAndSetEmergency(float value, float min, float max, const char* message) {
+void checkValueAndSetEmergency(float value, float min, float max, const char* message) 
+{
   if(chainsawRunning && (value < min || value > max)) {
     Serial.println(message);
     Serial.print("Value:");
@@ -224,12 +224,8 @@ void loop()
   checkValueAndSetEmergency(pitch_final, Pitch_Min, Pitch_Max, "PITCH_OUT_OF_RANGE");
   checkValueAndSetEmergency(roll_final, Roll_Min, Roll_Max, "ROLL_OUT_OF_RANGE");
   checkValueAndSetEmergency(yaw_final, Yaw_Min, Yaw_Max, "YAW_OUT_OF_RANGE");
+  checkValueAndSetEmergency(combined_final,0,Combined_Max,"COMBINED_OUT_OF_RANGE");
 
-  if(chainsawRunning && combined > Combined_Max) 
-  {
-    Serial.println("Combined_Max");
-    updateState(EMERGENCY);
-  }
 
 
   switch(currentState)
@@ -248,7 +244,6 @@ void loop()
       digitalWrite(WORK_LED, LOW);
       digitalWrite(BRAKE_LED, HIGH);
       digitalWrite(SETTING_LED, HIGH);
-      //resetAllValues();
       yawReset=0;
       setAngles();
       yawReset=yaw_final;
@@ -326,8 +321,9 @@ if (mpu.dmpGetCurrentFIFOPacket(fifoBuffer)) // Get the Latest packet
 
         mpu.dmpGetYawPitchRoll(ypr, &q, &gravity);
         yaw_final=(ypr[0] * RAD_TO_DEG) -yawReset;
-        pitch_final=ypr[1] * RAD_TO_DEG;
+        pitch_final=ypr[1] * RAD_TO_DEG*-1;
         roll_final=ypr[2] * RAD_TO_DEG;
+        combined_final = abs(pitch_final) + abs(yaw_final) + 1.5 * abs(roll_final);
 
 }
 }
@@ -344,7 +340,7 @@ void printAngles()
   printWithTab("Pitch:", pitch_final);
   printWithTab("Roll:", roll_final);
   printWithTab("YAW:", yaw_final);
-  printWithTab("COMBINED:", combined);
+  printWithTab("COMBINED:", combined_final);
 
   // Uncomment the following lines if you want to print MAX and MIN values
   /*
@@ -375,36 +371,7 @@ void setMinValues(double pitch_min, double roll_min, double yaw_min)
 
 }
 
-void resetAllValues()
-{
-   mpu.initialize();
-    devStatus = mpu.dmpInitialize();
 
-    // supply your own gyro offsets here, scaled for min sensitivity
-    mpu.setXGyroOffset(-156);
-    mpu.setYGyroOffset(-11);
-    mpu.setZGyroOffset(-14);
-    mpu.setXAccelOffset(-3699);
-    mpu.setYAccelOffset(-2519);
-    mpu.setZAccelOffset(1391);
-
-    // make sure it worked (returns 0 if so)
-    if (devStatus == 0) 
-    {
-
-        mpu.CalibrateAccel(6);
-        mpu.CalibrateGyro(6);
-        mpu.PrintActiveOffsets();
-        mpu.setDMPEnabled(true);
-
-        mpuIntStatus = mpu.getIntStatus();
-
-        dmpReady = true;
-        packetSize = mpu.dmpGetFIFOPacketSize();
-    }
-
-    blink();
-}
 
 void startVibration()
 {
