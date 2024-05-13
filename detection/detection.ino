@@ -90,6 +90,16 @@ const double PRESET_YAW_MIN=-80;
 // Preset maximum combined value
 const double PRESET_COMBINED_MAX=120;
 
+//Values for acceleration
+int acc_x, acc_y, acc_z;
+double acc_sum;
+
+const int ACC_X_OFFSET=-12;
+const int ACC_Y_OFFSET=15;
+const int ACC_Z_OFFSET=8181;
+
+const int ACC_MAX_PRESET=6500;
+
 // Final values for pitch, roll, and yaw after calculations
 double pitch_final, roll_final, yaw_final;
 
@@ -204,6 +214,7 @@ void loop()
   checkValueAndSetEmergency(roll_final, Roll_Min, Roll_Max, "ROLL_OUT_OF_RANGE");
   checkValueAndSetEmergency(yaw_final, Yaw_Min, Yaw_Max, "YAW_OUT_OF_RANGE");
   checkValueAndSetEmergency(combined_final,0,Combined_Max,"COMBINED_OUT_OF_RANGE");
+  checkValueAndSetEmergency(acc_sum,0,ACC_MAX_PRESET, "ACCELERATION_OUT_OF_RANGE");
 
 
 
@@ -215,7 +226,8 @@ void loop()
       digitalWrite(BRAKE_LED, LOW);
       digitalWrite(SETTING_LED, LOW);
       setAngles();
-      printAngles();
+      //printAngles();
+      printAcc();
       startVibration();
       updateState(STANDBY);
     break;
@@ -229,9 +241,10 @@ void loop()
     break;
 
 
-    case RESET: //reset Button - reset YAW & goes to normal use
+    case RESET: //reset Button - reset YAW, reset min & Max Values-> & goes to Standby
       chainsawRunning=false;
       emergency=false;
+      stopVibration();
       digitalWrite(WORK_LED, LOW);
       digitalWrite(BRAKE_LED, HIGH);
       digitalWrite(SETTING_LED, HIGH);
@@ -242,7 +255,6 @@ void loop()
       setMaxValues(PRESET_PITCH_MAX, PRESET_ROLL_MAX,PRESET_YAW_MAX,PRESET_COMBINED_MAX);
       setMinValues(PRESET_PITCH_MIN, PRESET_ROLL_MIN,PRESET_YAW_MIN);
       updateState(STANDBY);
-      stopVibration();
     break;
 
     case SET: //Set-Button - defining ZONE
@@ -251,7 +263,6 @@ void loop()
       digitalWrite(WORK_LED, LOW);
       digitalWrite(BRAKE_LED, LOW);
       digitalWrite(SETTING_LED, HIGH);
-
 
       if(Pitch_Max==PRESET_PITCH_MAX && Roll_Max==PRESET_ROLL_MAX && Yaw_Max==PRESET_YAW_MAX && Pitch_Min==PRESET_PITCH_MIN && Roll_Min==PRESET_ROLL_MIN && Yaw_Min==PRESET_YAW_MIN)
       {
@@ -262,7 +273,6 @@ void loop()
       setAngles();
       checkValues();
       printMinMaxValues();
-      //printAngles();
       updateState(STANDBY);
     break;
 
@@ -273,7 +283,6 @@ void loop()
       digitalWrite(WORK_LED, LOW);
       digitalWrite(BRAKE_LED, HIGH);
       digitalWrite(SETTING_LED, LOW);
-      //updateState(STOP);
     break;
 
   }
@@ -322,6 +331,12 @@ void setAngles()
         roll_final=ypr[2] * RAD_TO_DEG;
         combined_final = abs(pitch_final) + abs(yaw_final) + 1.5 * abs(roll_final);
 
+      acc_x= aaWorld.x-ACC_X_OFFSET;
+      acc_y=aaWorld.y-ACC_Y_OFFSET;
+      acc_z=aaWorld.z-ACC_Z_OFFSET;
+
+      acc_sum=sqrt(pow(acc_x,2)+pow(acc_y,2)+pow(acc_z,2));
+
   }
 }
 
@@ -338,6 +353,14 @@ void printAngles()  //prints the current Values of Pitch, Roll & Yaw
   printWithTab("Roll:", roll_final);
   printWithTab("YAW:", yaw_final);
   printWithTab("COMBINED:", combined_final);
+}
+
+void printAcc()  //prints the current Values of Acceleration
+{
+  printWithTab("Acc_X:", acc_x);
+  printWithTab("Acc_Y:", acc_y);
+  printWithTab("Acc_Z:", acc_z);
+  printWithTab("Acc_SUM:", acc_sum);
 }
 
 void printMinMaxValues() //prints the current Values of MIN & MAx Values for Pitch, Roll & Yaw
@@ -427,3 +450,4 @@ void checkValueAndSetEmergency(float value, float min, float max, const char* me
     updateState(EMERGENCY);
   }
 }
+
